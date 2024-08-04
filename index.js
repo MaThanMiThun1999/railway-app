@@ -1,5 +1,6 @@
 const puppeteer = require("puppeteer");
 const express = require("express");
+const moment = require("moment-timezone");
 require("dotenv").config();
 
 const app = express();
@@ -9,13 +10,19 @@ const NAUKRI_PASSWORD = process.env.NAUKRI_PASSWORD;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const randomDelay = (min, max) => delay(Math.floor(Math.random() * (max - min + 1) + min));
+function convertGMTToIST(gmtDateString) {
+  // Convert GMT to IST
+  const istDate = moment(gmtDateString).tz("Asia/Kolkata");
+  // Format the date to a readable string in 12-hour format
+  return istDate.format("YYYY-MM-DD hh:mm:ss A"); // 12-hour format with AM/PM
+}
 
 const naukriUpdater = async (emailID, password) => {
   let browser;
   try {
     console.log(`Browser launching...!`);
     const now = new Date();
-    console.log(`Launching started at: ${now.toLocaleString()}`);
+    console.log(`Launching started at: ${convertGMTToIST(now)}`);
 
     browser = await puppeteer.launch({
       args: [
@@ -45,9 +52,9 @@ const naukriUpdater = async (emailID, password) => {
     await randomDelay(1000, 3000);
     console.log("Navigated to Naukri login page");
 
-    if (!emailID || !password || typeof emailID !== 'string' || typeof password !== 'string') {
-        throw new Error('Email ID or password is not set or not a string.');
-      }
+    if (!emailID || !password || typeof emailID !== "string" || typeof password !== "string") {
+      throw new Error("Email ID or password is not set or not a string.");
+    }
 
     console.log("Entering EmailID...!");
     await page.type("#usernameField", emailID);
@@ -60,10 +67,10 @@ const naukriUpdater = async (emailID, password) => {
     console.log("Entered Password");
     console.log("Filled login form");
 
-    console.log("Clicking on Login button...!");
-    await page.click("button[data-ga-track='spa-event|login|login|Save||||true']");
-    await randomDelay(2000, 4000);
-    console.log("Clicked on Login button");
+    // console.log("Clicking on Login button...!");
+    // await page.click("button[data-ga-track='spa-event|login|login|Save||||true']");
+    // await randomDelay(2000, 4000);
+    // console.log("Clicked on Login button");
 
     console.log("Browser Closing");
   } catch (error) {
@@ -73,7 +80,7 @@ const naukriUpdater = async (emailID, password) => {
       await browser.close();
       console.log("Browser Closed");
       const now = new Date();
-      console.log(`Closing started at: ${now.toLocaleString()}`);
+      console.log(`Closing started at: ${convertGMTToIST(now)}`);
     }
   }
 };
@@ -82,7 +89,7 @@ const emailID = NAUKRI_EMAILID;
 const password = NAUKRI_PASSWORD;
 
 app.get("/", (req, res) => {
-  res.send(`<h1>RailWaY app Running on port ${PORT}!</h1>`);
+  res.send(`<h1>RailWaY app Running on port ${PORT}\nCurrent time is : ${convertGMTToIST(new Date())}!</h1>`);
 });
 
 app.get("/send", async (req, res) => {
