@@ -4,10 +4,19 @@ require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const NAUKRI_EMAILID = process.env.NAUKRI_EMAILID;
+const NAUKRI_PASSWORD = process.env.NAUKRI_PASSWORD;
 
-const checkScrap = async () => {
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const randomDelay = (min, max) => delay(Math.floor(Math.random() * (max - min + 1) + min));
+
+const naukriUpdater = async (emailID, password) => {
   let browser;
   try {
+    console.log(`Browser launching...!`);
+    const now = new Date();
+    console.log(`Launching started at: ${now.toLocaleString()}`);
+
     browser = await puppeteer.launch({
       args: [
         "--no-sandbox",
@@ -32,11 +41,29 @@ const checkScrap = async () => {
         get: () => false,
       });
     });
-    await page.goto("https://example.com");
+    await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2" });
+    await randomDelay(1000, 3000);
+    console.log("Navigated to Naukri login page");
 
-    console.log(`Navigated to ${page.url()}. Title: ${await page.title()}. Current URL: ${await page.url()}`);
-    const title = await page.title();
-    console.log(`Title: ${title}`);
+    if (!emailID || !password || typeof emailID !== 'string' || typeof password !== 'string') {
+        throw new Error('Email ID or password is not set or not a string.');
+      }
+
+    console.log("Entering EmailID...!");
+    await page.type("#usernameField", emailID);
+    await randomDelay(1000, 3000);
+    console.log("Entered Email ID");
+
+    console.log("Entering Password...!");
+    await page.type("#passwordField", password);
+    await randomDelay(1000, 2000);
+    console.log("Entered Password");
+    console.log("Filled login form");
+
+    console.log("Clicking on Login button...!");
+    await page.click("button[data-ga-track='spa-event|login|login|Save||||true']");
+    await randomDelay(2000, 4000);
+    console.log("Clicked on Login button");
 
     console.log("Browser Closing");
   } catch (error) {
@@ -45,16 +72,21 @@ const checkScrap = async () => {
     if (browser) {
       await browser.close();
       console.log("Browser Closed");
+      const now = new Date();
+      console.log(`Closing started at: ${now.toLocaleString()}`);
     }
   }
 };
+
+const emailID = NAUKRI_EMAILID;
+const password = NAUKRI_PASSWORD;
 
 app.get("/", (req, res) => {
   res.send(`<h1>RailWaY app Running on port ${PORT}!</h1>`);
 });
 
-app.get("/send", (req, res) => {
-  checkScrap();
+app.get("/send", async (req, res) => {
+  await naukriUpdater(emailID, password);
   res.send(`<h1>Successfully Email Sended</h1>`);
 });
 
