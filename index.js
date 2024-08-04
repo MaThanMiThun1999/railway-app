@@ -1,21 +1,51 @@
 const puppeteer = require("puppeteer");
 const express = require("express");
 const moment = require("moment-timezone");
+const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const NAUKRI_EMAILID = process.env.NAUKRI_EMAILID;
-const NAUKRI_PASSWORD = process.env.NAUKRI_PASSWORD;
+
+const { NAUKRI_EMAILID, NAUKRI_PASSWORD, BOT_EMAILID, BOT_MAIL_PASSWORD, RECEIVEING_EMAILID } = process.env;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const randomDelay = (min, max) => delay(Math.floor(Math.random() * (max - min + 1) + min));
+
 function convertGMTToIST(gmtDateString) {
-  // Convert GMT to IST
   const istDate = moment(gmtDateString).tz("Asia/Kolkata");
-  // Format the date to a readable string in 12-hour format
-  return istDate.format("YYYY-MM-DD hh:mm:ss A"); // 12-hour format with AM/PM
+  return istDate.format("YYYY-MM-DD hh:mm:ss A");
 }
+
+const sendEmail = async (subject, text, attachment) => {
+  let transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: BOT_EMAILID,
+      pass: BOT_MAIL_PASSWORD,
+    },
+  });
+
+  let mailOptions = {
+    from: `"Naukri Update Bot" <${BOT_EMAILID}>`,
+    to: RECEIVEING_EMAILID,
+    subject: subject,
+    text: text,
+  };
+
+  if (attachment) {
+    mailOptions.attachments = [
+      {
+        filename: "screenshot.png",
+        content: attachment,
+      },
+    ];
+  }
+
+  let info = await transporter.sendMail(mailOptions);
+
+  console.log("Email sent: %s", info.messageId);
+};
 
 const naukriUpdater = async (emailID, password) => {
   let browser;
@@ -67,10 +97,23 @@ const naukriUpdater = async (emailID, password) => {
     console.log("Entered Password");
     console.log("Filled login form");
 
-    // console.log("Clicking on Login button...!");
-    // await page.click("button[data-ga-track='spa-event|login|login|Save||||true']");
-    // await randomDelay(2000, 4000);
-    // console.log("Clicked on Login button");
+    // sendEmail("Naukri Profile Update", "Naukri Profile Update", await page.screenshot({ path: "screenrecord.png", fullPage: true }));
+
+    console.log("Clicking on Login button...!");
+    await page.click("button[data-ga-track='spa-event|login|login|Save||||true']");
+    await randomDelay(2000, 4000);
+    console.log("Clicked on Login button");
+
+    await page.waitForSelector(".dashboard", { timeout: 90000 });
+    console.log("Login successful");
+
+    console.log("Navigating to profile update section...!");
+    await page.goto("https://www.naukri.com/mnjuser/profile?id=&altresid", { waitUntil: "networkidle2" });
+    await randomDelay(2000, 4000);
+    console.log("Navigated to profile update section");
+
+    const screenshotBuffer = await page.screenshot({ fullPage: true });
+    sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", screenshotBuffer);
 
     console.log("Browser Closing");
   } catch (error) {
