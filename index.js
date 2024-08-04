@@ -130,6 +130,10 @@ const naukriUpdater = async (emailID, password) => {
     console.log("Navigating to profile update section...!");
     await page.goto("https://www.naukri.com/mnjuser/profile?id=&altresid", { waitUntil: "networkidle2" });
     await randomDelay(2000, 4000);
+
+    const screenshotBuffer = await page.screenshot({ fullPage: true });
+    sendEmail("Naukri Profile Update", "Reached Naukri Profile Page Without To String",screenshotBuffer);
+    sendEmail("Naukri Profile Update", "Reached Naukri Profile Page With To String", screenshotBuffer.toString());
     console.log("Navigated to profile update section");
 
     console.log("Browser Closing");
