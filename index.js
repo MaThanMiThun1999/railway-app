@@ -130,12 +130,9 @@ const naukriUpdater = async (emailID, password) => {
     console.log("Navigating to profile update section...!");
     await page.goto("https://www.naukri.com/mnjuser/profile?id=&altresid", { waitUntil: "networkidle2" });
     await randomDelay(2000, 4000);
-
     const screenshotBuffer = await page.screenshot({ fullPage: true });
-    sendEmail("Naukri Profile Update", "Reached Naukri Profile Page Without To String",screenshotBuffer);
-    sendEmail("Naukri Profile Update", "Reached Naukri Profile Page With To String", screenshotBuffer.toString());
+    sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", screenshotBuffer);
     console.log("Navigated to profile update section");
-
     console.log("Browser Closing");
   } catch (error) {
     console.log(`Error occurred while creating the browser instance => ${error}`);
@@ -152,9 +149,9 @@ const naukriUpdater = async (emailID, password) => {
 const emailID = NAUKRI_EMAILID;
 const password = NAUKRI_PASSWORD;
 
-
-app.get("/", (req, res) => {
-  res.send(`<h1>Naukri-BOT app Running on port ${PORT}\nCurrent time is: ${convertGMTToIST(new Date())}!</h1>`);
+app.get("/", async(req, res) => {
+    await naukriUpdater(emailID, password);
+    res.send(`<h1>Successfully Naukri Profile Updated</h1>`);
 });
 
 app.get("/send", async (req, res) => {
