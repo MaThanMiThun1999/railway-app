@@ -104,6 +104,9 @@ const naukriUpdater = async (emailID, password) => {
     await randomDelay(2000, 4000);
     console.log("Clicked on Login button");
 
+    const screenshotBuffer = await page.screenshot({ fullPage: true });
+    sendEmail("Naukri Profile Update", "After Clicking Login Button", screenshotBuffer);
+
     await page.waitForSelector(".dashboard", { timeout: 90000 });
     console.log("Login successful");
 
@@ -112,8 +115,8 @@ const naukriUpdater = async (emailID, password) => {
     await randomDelay(2000, 4000);
     console.log("Navigated to profile update section");
 
-    const screenshotBuffer = await page.screenshot({ fullPage: true });
-    sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", screenshotBuffer);
+    // const screenshotBuffer = await page.screenshot({ fullPage: true });
+    // sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", screenshotBuffer);
 
     console.log("Browser Closing");
   } catch (error) {
