@@ -4,7 +4,7 @@ const path = require("path");
 const express = require("express");
 const moment = require("moment-timezone");
 const nodemailer = require("nodemailer");
-const { PuppeteerVideoRecorder } = require("puppeteer-video-recorder");
+const record = require('record-screen');
 require("dotenv").config();
 
 const app = express();
@@ -48,6 +48,7 @@ const sendEmail = async (subject, text, attachment) => {
 
 const naukriUpdater = async (emailID, password) => {
   let browser;
+  let recording;
   try {
     console.log(`Browser launching...!`);
     const now = new Date();
@@ -91,10 +92,15 @@ const naukriUpdater = async (emailID, password) => {
           : originalQuery(parameters);
     });
 
-    // Initialize screen recorder
-    const recorder = new PuppeteerVideoRecorder(page);
+    // Initialize screen recording
     const videoPath = path.resolve(__dirname, 'recording.mp4');
-    await recorder.start({ path: videoPath });
+    recording = record({
+      ffmpegPath: require('ffmpeg-static').path, // Use a static path to ffmpeg
+      resolution: '1280x800',
+      videoPath,
+    });
+    
+    recording.start();
 
     // Check if cookies file exists
     const cookiesPath = path.resolve(__dirname, "cookies.json");
@@ -166,8 +172,8 @@ const naukriUpdater = async (emailID, password) => {
     console.log("Navigated to profile update section");
 
     console.log("Navigated to profile update section");
-    await recorder.stop();
 
+    recording.stop();
     const videoBuffer = fs.readFileSync(videoPath);
     await sendEmail("Naukri Profile Update", "Profile update action recorded", videoBuffer);
 
@@ -175,6 +181,9 @@ const naukriUpdater = async (emailID, password) => {
     console.log("Browser Closing");
   } catch (error) {
     console.log(`Error occurred while creating the browser instance => ${error}`);
+    if (recording) {
+      recording.stop();
+    }
   } finally {
     if (browser) {
       await browser.close();
