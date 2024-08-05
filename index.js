@@ -144,7 +144,7 @@ const naukriUpdater = async (emailID, password) => {
       ) {
         console.log("OTP input found");
         const OTPscreenshotBuffer = await page.screenshot({ fullPage: true });
-        sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", OTPscreenshotBuffer.toString());
+        sendEmail("Naukri Profile Update", "Reached Naukri OTP Page", OTPscreenshotBuffer.toString());
         console.log("Sent OTP screenshot");
       } else {
         console.log("No OTP found");
@@ -162,9 +162,10 @@ const naukriUpdater = async (emailID, password) => {
     await randomDelay(2000, 4000);
     console.log("Navigated to profile update section");
 
+    console.log("Navigated to profile update section");
     const screenshotBuffer = await page.screenshot({ fullPage: true });
     sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", screenshotBuffer);
-    console.log("Navigated to profile update section");
+    console.log("Senting Profile screenshot");
     console.log("Browser Closing");
   } catch (error) {
     console.log(`Error occurred while creating the browser instance => ${error}`);
