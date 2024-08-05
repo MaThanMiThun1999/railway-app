@@ -8,7 +8,7 @@ require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const { NAUKRI_EMAILID, NAUKRI_PASSWORD, BOT_EMAILID, BOT_MAIL_PASSWORD, RECEIVEING_EMAILID,PUPPETEER_EXECUTABLE_PATH } = process.env;
+const { NAUKRI_EMAILID, NAUKRI_PASSWORD, BOT_EMAILID, BOT_MAIL_PASSWORD, RECEIVEING_EMAILID,PUPPETEER_EXECUTABLE_PATH ,NODE_ENV} = process.env;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const randomDelay = (min, max) => delay(Math.floor(Math.random() * (max - min + 1) + min));
@@ -66,7 +66,7 @@ const naukriUpdater = async (emailID, password) => {
       headless: true,
       slowMo: 100,
       executablePath:
-      process.env.NODE_ENV === "production"
+      NODE_ENV === "production"
         ? PUPPETEER_EXECUTABLE_PATH
         : puppeteer.executablePath(),
     });
