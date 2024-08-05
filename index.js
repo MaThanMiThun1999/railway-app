@@ -115,7 +115,6 @@ const naukriUpdater = async (emailID, password) => {
 
     if (!loginCheck) {
       console.log("Navigated to Naukri login page");
-      await page.screenshot({ path: "screenshot.png" });
       // Wait for the username field to be available
       await page.waitForSelector("#usernameField");
 
@@ -181,8 +180,6 @@ const naukriUpdater = async (emailID, password) => {
 
 const emailID = NAUKRI_EMAILID;
 const password = NAUKRI_PASSWORD;
-naukriUpdater(emailID, password);
-
 app.get("/", (req, res) => {
   res.send(`<h1>Naukri-BOT app Running on port ${PORT}\nCurrent time is: ${convertGMTToIST(new Date())}!</h1>`);
 });
