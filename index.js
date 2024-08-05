@@ -4,7 +4,7 @@ const path = require("path");
 const express = require("express");
 const moment = require("moment-timezone");
 const nodemailer = require("nodemailer");
-const { PuppeteerScreenRecorder } = require("puppeteer-screen-recorder");
+const { PuppeteerVideoRecorder } = require("puppeteer-video-recorder");
 require("dotenv").config();
 
 const app = express();
@@ -92,9 +92,9 @@ const naukriUpdater = async (emailID, password) => {
     });
 
     // Initialize screen recorder
-    const recorder = new PuppeteerScreenRecorder(page);
+    const recorder = new PuppeteerVideoRecorder(page);
     const videoPath = path.resolve(__dirname, 'recording.mp4');
-    await recorder.start(videoPath);
+    await recorder.start({ path: videoPath });
 
     // Check if cookies file exists
     const cookiesPath = path.resolve(__dirname, "cookies.json");
