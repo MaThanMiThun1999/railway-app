@@ -25,6 +25,9 @@ const sendEmail = async (subject, text, attachment) => {
       user: BOT_EMAILID,
       pass: BOT_MAIL_PASSWORD,
     },
+    tls: {
+      rejectUnauthorized: false,
+    },
   });
 
   let mailOptions = {
@@ -35,12 +38,7 @@ const sendEmail = async (subject, text, attachment) => {
   };
 
   if (attachment) {
-    mailOptions.attachments = [
-      {
-        filename: "screenshot.png",
-        content: attachment,
-      },
-    ];
+    mailOptions.attachments = [{ filename: "screenshot.png", content: attachment }];
   }
 
   let info = await transporter.sendMail(mailOptions);
@@ -63,21 +61,26 @@ const naukriUpdater = async (emailID, password) => {
         "--no-zygote",
         "--single-process",
         "--disable-gpu",
-        "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.64 Safari/537.36",
+        "--disable-software-rasterizer",
       ],
       headless: true,
       slowMo: 100,
     });
-
     console.log(`Browser launched...!`);
+
     const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 800 });
 
     // Check if cookies file exists
     const cookiesPath = path.resolve(__dirname, "cookies.json");
+    console.log(`Cookies path: ${cookiesPath}`);
     const previousSession = fs.existsSync(cookiesPath);
+
+    console.log(`Cookies file exists: ${previousSession}`);
     if (previousSession) {
       const cookies = JSON.parse(fs.readFileSync(cookiesPath, "utf-8"));
+
+      console.log("Session cookies are" + cookies);
       if (cookies.length) {
         await page.setCookie(...cookies);
         console.log("Session cookies loaded!");
@@ -86,50 +89,58 @@ const naukriUpdater = async (emailID, password) => {
 
     await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2" });
 
-    // Check if logged in
+    // Check if already logged in
     const loginCheck = await page.evaluate(() => {
       return document.querySelector(".dashboard") !== null;
     });
 
     if (!loginCheck) {
       console.log("Navigated to Naukri login page");
-
       if (!emailID || !password || typeof emailID !== "string" || typeof password !== "string") {
         throw new Error("Email ID or password is not set or not a string.");
       }
-
       console.log("Entering Email ID...!");
       await page.type("#usernameField", emailID);
       await randomDelay(1000, 3000);
       console.log("Entered Email ID");
-
       console.log("Entering Password...!");
       await page.type("#passwordField", password);
       await randomDelay(1000, 2000);
       console.log("Entered Password");
       console.log("Filled login form");
-
       console.log("Clicking on Login button...!");
       await page.click("button[data-ga-track='spa-event|login|login|Save||||true']");
       await randomDelay(2000, 4000);
       console.log("Clicked on Login button");
 
+      // Wait for OTP input field
+      console.log("Waiting for OTP input...");
       if (
         await page.evaluate(() => {
           return document.querySelector(".otp-input") !== null;
         })
-      ) {
+      ){
         console.log("OTP input found");
         const OTPscreenshotBuffer = await page.screenshot({ fullPage: true });
         sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", OTPscreenshotBuffer.toString());
         console.log("Sent OTP screenshot");
-      } else {
-        console.log("OTP input not found");
+      }else{
+        console.log("No OTP found");
       }
+
+      // Save session cookies
+      const cookies = await page.cookies();
+      console.log("Session cookies are" + cookies);
+      fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
+      console.log("Session cookies saved!");
+
     }
+
     console.log("Navigating to profile update section...!");
     await page.goto("https://www.naukri.com/mnjuser/profile?id=&altresid", { waitUntil: "networkidle2" });
     await randomDelay(2000, 4000);
+    console.log("Navigated to profile update section");
+
     const screenshotBuffer = await page.screenshot({ fullPage: true });
     sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", screenshotBuffer);
     console.log("Navigated to profile update section");
@@ -138,7 +149,7 @@ const naukriUpdater = async (emailID, password) => {
     console.log(`Error occurred while creating the browser instance => ${error}`);
   } finally {
     if (browser) {
-      // await browser.close();
+      await browser.close();
       console.log("Browser Closed");
       const now = new Date();
       console.log(`Closing started at: ${convertGMTToIST(now)}`);
@@ -149,9 +160,8 @@ const naukriUpdater = async (emailID, password) => {
 const emailID = NAUKRI_EMAILID;
 const password = NAUKRI_PASSWORD;
 
-app.get("/", async(req, res) => {
-    await naukriUpdater(emailID, password);
-    res.send(`<h1>Successfully Naukri Profile Updated</h1>`);
+app.get("/", (req, res) => {
+  res.send(`<h1>Naukri-BOT app Running on port ${PORT}\nCurrent time is: ${convertGMTToIST(new Date())}!</h1>`);
 });
 
 app.get("/send", async (req, res) => {
