@@ -66,10 +66,29 @@ const naukriUpdater = async (emailID, password) => {
       headless: true,
       slowMo: 100,
     });
+    console.log(`Launching at: Headless: True`);
     console.log(`Browser launched...!`);
 
     const page = await browser.newPage();
+    
+    // Set user agent and viewport
+    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
     await page.setViewport({ width: 1280, height: 800 });
+
+    // Set WebGL and plugins
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [1, 2, 3, 4, 5],
+      });
+      Object.defineProperty(navigator, 'languages', {
+        get: () => ['en-US', 'en'],
+      });
+      const originalQuery = window.navigator.permissions.query;
+      window.navigator.permissions.query = (parameters) =>
+        parameters.name === 'notifications'
+          ? Promise.resolve({ state: Notification.permission })
+          : originalQuery(parameters);
+    });
 
     // Check if cookies file exists
     const cookiesPath = path.resolve(__dirname, "cookies.json");
@@ -96,6 +115,10 @@ const naukriUpdater = async (emailID, password) => {
 
     if (!loginCheck) {
       console.log("Navigated to Naukri login page");
+      await page.screenshot({ path: "screenshot.png" });
+      // Wait for the username field to be available
+      await page.waitForSelector("#usernameField");
+
       if (!emailID || !password || typeof emailID !== "string" || typeof password !== "string") {
         throw new Error("Email ID or password is not set or not a string.");
       }
@@ -119,12 +142,12 @@ const naukriUpdater = async (emailID, password) => {
         await page.evaluate(() => {
           return document.querySelector(".otp-input") !== null;
         })
-      ){
+      ) {
         console.log("OTP input found");
         const OTPscreenshotBuffer = await page.screenshot({ fullPage: true });
         sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", OTPscreenshotBuffer.toString());
         console.log("Sent OTP screenshot");
-      }else{
+      } else {
         console.log("No OTP found");
       }
 
@@ -133,7 +156,6 @@ const naukriUpdater = async (emailID, password) => {
       console.log("Session cookies are" + cookies);
       fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
       console.log("Session cookies saved!");
-
     }
 
     console.log("Navigating to profile update section...!");
