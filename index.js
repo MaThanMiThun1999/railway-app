@@ -38,7 +38,7 @@ const sendEmail = async (subject, text, attachment) => {
   };
 
   if (attachment) {
-    mailOptions.attachments = [{ filename: "screenshot.png", content: attachment }];
+    mailOptions.attachments = [{ filename: "ScreenshoT.png", content: attachment }];
   }
 
   let info = await transporter.sendMail(mailOptions);
@@ -143,8 +143,8 @@ const naukriUpdater = async (emailID, password) => {
         })
       ) {
         console.log("OTP input found");
-        const OTPscreenshotBuffer = await page.screenshot({ fullPage: true });
-        sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", OTPscreenshotBuffer.toString());
+        // const OTPscreenshotBuffer = await page.screenshot({ fullPage: true });
+        // sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", OTPscreenshotBuffer.toString());
         console.log("Sent OTP screenshot");
       } else {
         console.log("No OTP found");
@@ -162,12 +162,13 @@ const naukriUpdater = async (emailID, password) => {
     await randomDelay(2000, 4000);
     console.log("Navigated to profile update section");
 
-    console.log("Navigated to profile update section");
+    console.log("Navigated to profile update section")
+    console.log("Browser Closing");
     const screenshotBuffer = await page.screenshot({ fullPage: true });
     sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", screenshotBuffer);
     console.log("Senting Profile screenshot");
-    console.log("Browser Closing");
   } catch (error) {
+
     console.log(`Error occurred while creating the browser instance => ${error}`);
   } finally {
     if (browser) {
