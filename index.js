@@ -1,10 +1,12 @@
 const puppeteer = require("puppeteer");
 const fs = require("fs");
 const path = require("path");
+const { exec } = require("child_process");
 const express = require("express");
 const moment = require("moment-timezone");
 const nodemailer = require("nodemailer");
-const record = require('record-screen');
+const ffmpegPath = require("ffmpeg-static");
+
 require("dotenv").config();
 
 const app = express();
@@ -46,9 +48,39 @@ const sendEmail = async (subject, text, attachment) => {
   console.log("Email sent: %s", info.messageId);
 };
 
+const startRecording = (outputPath) => {
+  return new Promise((resolve, reject) => {
+    const command = `${ffmpegPath} -y -f x11grab -s 1280x800 -i :0 -c:v libx264 -r 30 ${outputPath}`;
+    const process = exec(command, (error) => {
+      if (error) {
+        reject(`Error starting recording: ${error}`);
+      } else {
+        resolve();
+      }
+    });
+
+    // Capture process output for debugging
+    process.stdout.on("data", (data) => console.log(data.toString()));
+    process.stderr.on("data", (data) => console.error(data.toString()));
+  });
+};
+
+const stopRecording = () => {
+  return new Promise((resolve, reject) => {
+    exec("pkill -2 ffmpeg", (error) => {
+      if (error) {
+        reject(`Error stopping recording: ${error}`);
+      } else {
+        resolve();
+      }
+    });
+  });
+};
+
 const naukriUpdater = async (emailID, password) => {
   let browser;
-  let recording;
+  const videoPath = path.resolve(__dirname, 'recording.mp4');
+
   try {
     console.log(`Browser launching...!`);
     const now = new Date();
@@ -72,7 +104,10 @@ const naukriUpdater = async (emailID, password) => {
     console.log(`Browser launched...!`);
 
     const page = await browser.newPage();
-    
+
+    // Start recording
+    await startRecording(videoPath);
+
     // Set user agent and viewport
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
     await page.setViewport({ width: 1280, height: 800 });
@@ -91,16 +126,6 @@ const naukriUpdater = async (emailID, password) => {
           ? Promise.resolve({ state: Notification.permission })
           : originalQuery(parameters);
     });
-
-    // Initialize screen recording
-    const videoPath = path.resolve(__dirname, 'recording.mp4');
-    recording = record({
-      ffmpegPath: require('ffmpeg-static').path, // Use a static path to ffmpeg
-      resolution: '1280x800',
-      videoPath,
-    });
-    
-    recording.start();
 
     // Check if cookies file exists
     const cookiesPath = path.resolve(__dirname, "cookies.json");
@@ -171,9 +196,8 @@ const naukriUpdater = async (emailID, password) => {
     await randomDelay(2000, 4000);
     console.log("Navigated to profile update section");
 
-    console.log("Navigated to profile update section");
-
-    recording.stop();
+    // Stop recording
+    await stopRecording();
     const videoBuffer = fs.readFileSync(videoPath);
     await sendEmail("Naukri Profile Update", "Profile update action recorded", videoBuffer);
 
@@ -181,8 +205,8 @@ const naukriUpdater = async (emailID, password) => {
     console.log("Browser Closing");
   } catch (error) {
     console.log(`Error occurred while creating the browser instance => ${error}`);
-    if (recording) {
-      recording.stop();
+    if (videoRecorder) {
+      await stopRecording();
     }
   } finally {
     if (browser) {
