@@ -4,6 +4,7 @@ const path = require("path");
 const express = require("express");
 const moment = require("moment-timezone");
 const nodemailer = require("nodemailer");
+const { PuppeteerScreenRecorder } = require("puppeteer-screen-recorder");
 require("dotenv").config();
 
 const app = express();
@@ -38,7 +39,7 @@ const sendEmail = async (subject, text, attachment) => {
   };
 
   if (attachment) {
-    mailOptions.attachments = [{ filename: "screenshot.png", content: attachment }];
+    mailOptions.attachments = [{ filename: "recording.mp4", content: attachment }];
   }
 
   let info = await transporter.sendMail(mailOptions);
@@ -89,6 +90,11 @@ const naukriUpdater = async (emailID, password) => {
           ? Promise.resolve({ state: Notification.permission })
           : originalQuery(parameters);
     });
+
+    // Initialize screen recorder
+    const recorder = new PuppeteerScreenRecorder(page);
+    const videoPath = path.resolve(__dirname, 'recording.mp4');
+    await recorder.start(videoPath);
 
     // Check if cookies file exists
     const cookiesPath = path.resolve(__dirname, "cookies.json");
@@ -143,9 +149,6 @@ const naukriUpdater = async (emailID, password) => {
         })
       ) {
         console.log("OTP input found");
-        const OTPscreenshotBuffer = await page.screenshot({ fullPage: true });
-        sendEmail("Naukri Profile Update", "Reached Naukri OTP Page", OTPscreenshotBuffer.toString());
-        console.log("Sent OTP screenshot");
       } else {
         console.log("No OTP found");
       }
@@ -163,9 +166,12 @@ const naukriUpdater = async (emailID, password) => {
     console.log("Navigated to profile update section");
 
     console.log("Navigated to profile update section");
-    const screenshotBuffer = await page.screenshot({ fullPage: true });
-    sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", screenshotBuffer);
-    console.log("Senting Profile screenshot");
+    await recorder.stop();
+
+    const videoBuffer = fs.readFileSync(videoPath);
+    await sendEmail("Naukri Profile Update", "Profile update action recorded", videoBuffer);
+
+    console.log("Sent Profile update recording");
     console.log("Browser Closing");
   } catch (error) {
     console.log(`Error occurred while creating the browser instance => ${error}`);
