@@ -85,6 +85,26 @@ const recordVideo = async (page, videoPath) => {
   await recorder.stop();
 };
 
+const setupBrowser = async () => {
+  return puppeteer.launch({
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-accelerated-2d-canvas",
+      "--no-first-run",
+      "--no-zygote",
+      "--single-process",
+      "--disable-gpu",
+      "--disable-software-rasterizer",
+      "--disable-http2",
+    ],
+    headless: true,
+    slowMo: 100,
+    protocolTimeout: 120000,
+  });
+};
+
 const naukriUpdater = async (emailID, password) => {
   let browser;
   const videoPath = path.join(videosDir, 'session.mp4');
@@ -93,33 +113,24 @@ const naukriUpdater = async (emailID, password) => {
     const now = new Date();
     console.log(`Launching started at: ${convertGMTToIST(now)}`);
 
-    browser = await puppeteer.launch({
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
-        "--no-first-run",
-        "--no-zygote",
-        "--single-process",
-        "--disable-gpu",
-        "--disable-software-rasterizer",
-        "--disable-http2",
-      ],
-      headless: true,
-      slowMo: 100,
-      protocolTimeout: 120000,
-    });
-
+    browser = await setupBrowser();
     console.log(`Browser launched...!`);
     const page = await browser.newPage();
 
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
     await page.setViewport({ width: 1280, height: 800 });
 
+    // Proxy setup (optional, configure if needed)
+    // await page.authenticate({ username: emailID, password: password });
+
+    // // Use cookies and session data if available
+    // const cookies = await page.cookies();
+    // await page.setCookie(...cookies);
+    // console.log(await page.setCookie(...cookies));
+
     await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2" });
 
-    // Handle access denied by setting proper headers or other methods if needed
+    // Set request headers
     await page.setRequestInterception(true);
     page.on('request', (request) => {
       if (request.url().includes('naukri.com')) {
@@ -127,7 +138,9 @@ const naukriUpdater = async (emailID, password) => {
           headers: {
             ...request.headers(),
             'Accept-Language': 'en-US,en;q=0.9',
-            'DNT': '1'
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Referer': 'https://www.naukri.com/',
           }
         });
       } else {
