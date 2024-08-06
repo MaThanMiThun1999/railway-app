@@ -62,6 +62,7 @@ const naukriUpdater = async (emailID, password) => {
         "--single-process",
         "--disable-gpu",
         "--disable-software-rasterizer",
+        "--disable-http2" // Disable HTTP/2 support
       ],
       headless: true,
       slowMo: 100,
