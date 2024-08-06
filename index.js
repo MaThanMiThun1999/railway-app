@@ -66,7 +66,7 @@ const naukriUpdater = async (emailID, password) => {
       ],
       headless: true,
       slowMo: 100,
-      protocolTimeout: 120000, // Increase the protocol timeout to 2 minutes
+      protocolTimeout: 120000,
     });
 
     console.log(`Browser launched...!`);
@@ -84,19 +84,6 @@ const naukriUpdater = async (emailID, password) => {
       window.navigator.permissions.query = (parameters) => (parameters.name === "notifications" ? Promise.resolve({ state: Notification.permission }) : originalQuery(parameters));
     });
 
-    // Check if cookies file exists
-    const cookiesPath = path.resolve(__dirname, "cookies.json");
-    console.log(`Cookies path: ${cookiesPath}`);
-    const previousSession = fs.existsSync(cookiesPath);
-    console.log(`Cookies file exists: ${previousSession}`);
-    if (previousSession) {
-      const cookies = JSON.parse(fs.readFileSync(cookiesPath, "utf-8"));
-      console.log("Session cookies are " + cookies);
-      if (cookies.length) {
-        await page.setCookie(...cookies);
-        console.log("Session cookies loaded!");
-      }
-    }
 
     await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2" });
 
@@ -138,11 +125,6 @@ const naukriUpdater = async (emailID, password) => {
         console.log("No OTP found");
       }
 
-      // Save session cookies
-      const cookies = await page.cookies();
-      console.log("Session cookies are " + cookies);
-      fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
-      console.log("Session cookies saved!");
     }
 
     console.log("Navigating to profile update section...!");
