@@ -98,11 +98,11 @@ const setupBrowser = async () => {
       "--disable-gpu",
       "--disable-software-rasterizer",
       "--disable-http2",
-      "--disable-web-security" // Disable web security
+      "--disable-web-security"
     ],
     headless: true,
     slowMo: 100,
-    protocolTimeout: 120000,
+    protocolTimeout: 60000, // Increase timeout to 60 seconds
   });
 };
 
@@ -147,7 +147,7 @@ const naukriUpdater = async (emailID, password) => {
     await page.setViewport({ width: 1280, height: 800 });
 
     // Open the page and handle potential CAPTCHA
-    await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2" });
+    await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2", timeout: 60000 });
 
     // Add random delays between actions
     await randomDelay(2000, 5000);
@@ -169,7 +169,7 @@ const naukriUpdater = async (emailID, password) => {
       }
     }
 
-    await page.goto("https://www.naukri.com/mnjuser/profile?id=&altresid", { waitUntil: "networkidle2" });
+    await page.goto("https://www.naukri.com/mnjuser/profile?id=&altresid", { waitUntil: "networkidle2", timeout: 60000 });
     await waitForSelectorWithRetry(page, ".widgetHead>.edit");
 
     await page.click(".widgetHead>.edit");
@@ -208,7 +208,7 @@ const naukriUpdater = async (emailID, password) => {
     // Take a screenshot on error
     if (browser) {
       const page = await browser.newPage(); // Create a new page for error screenshot
-      await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2" });
+      await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2", timeout: 60000 });
       const errorScreenshotBuffer = await takeScreenshot(page, 'error_screenshot');
       await recordVideo(page, path.join(videosDir, 'error_session.mp4'));
 
