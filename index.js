@@ -70,24 +70,21 @@ const naukriUpdater = async (emailID, password) => {
     console.log(`Browser launched...!`);
 
     const page = await browser.newPage();
-    
+
     // Set user agent and viewport
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
     await page.setViewport({ width: 1280, height: 800 });
 
     // Set WebGL and plugins
     await page.evaluateOnNewDocument(() => {
-      Object.defineProperty(navigator, 'plugins', {
+      Object.defineProperty(navigator, "plugins", {
         get: () => [1, 2, 3, 4, 5],
       });
-      Object.defineProperty(navigator, 'languages', {
-        get: () => ['en-US', 'en'],
+      Object.defineProperty(navigator, "languages", {
+        get: () => ["en-US", "en"],
       });
       const originalQuery = window.navigator.permissions.query;
-      window.navigator.permissions.query = (parameters) =>
-        parameters.name === 'notifications'
-          ? Promise.resolve({ state: Notification.permission })
-          : originalQuery(parameters);
+      window.navigator.permissions.query = (parameters) => (parameters.name === "notifications" ? Promise.resolve({ state: Notification.permission }) : originalQuery(parameters));
     });
 
     // Check if cookies file exists
@@ -162,13 +159,67 @@ const naukriUpdater = async (emailID, password) => {
     await randomDelay(2000, 4000);
     console.log("Navigated to profile update section");
 
-    console.log("Navigated to profile update section")
+    console.log("Navigated to profile update section");
     console.log("Browser Closing");
-    const screenshotBuffer = await page.screenshot({ fullPage: true });
-    sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", screenshotBuffer);
-    console.log("Senting Profile screenshot");
-  } catch (error) {
 
+    console.log("Waiting for widgetHead Loading...");
+    // Click on <span> "editOneTheme"
+    
+    await page.waitForSelector(".widgetHead > .edit");
+    await Promise.all([page.click(".widgetHead > .edit"), page.waitForNavigation()]);
+
+    console.log("WidgetHead loaded...");
+    console.log("Loading Key Skills...");
+    // Click on <input> #keySkillSugg
+    await randomDelay(2000, 4000);
+    await page.waitForSelector("#keySkillSugg");
+    await page.click("#keySkillSugg");
+    console.log("Key Skills loaded...");
+
+    console.log("Loading Key Skills...");
+    console.log("Typing Node js...");
+    // Fill "Node js" on <input> #keySkillSugg
+    await page.waitForSelector("#keySkillSugg:not([disabled])");
+    await page.type("#keySkillSugg", "Node js");
+    await randomDelay(2000, 4000);
+    console.log("Key Skills typed...");
+
+    console.log("Clicking on Node Js Framework...");
+    // Click on <div> "Node Js Framework"
+    await page.waitForSelector(".Sbtn");
+
+    await page.click(".Sbtn");
+    await randomDelay(2000, 4000);
+
+    console.log("Node Js Framework clicked...");
+
+    // Scroll wheel by X:0, Y:131
+    await page.evaluate(() => window.scrollBy(0, 131));
+
+    // Scroll wheel by X:0, Y:-44
+    await page.evaluate(() => window.scrollBy(0, -44));
+
+    // Scroll wheel by X:0, Y:253
+    await page.evaluate(() => window.scrollBy(0, 253));
+
+    console.log("Saving Key Skills...");
+    // Click on <button> "Save"
+    await page.waitForSelector("#saveKeySkills");
+    await randomDelay(2000, 4000);
+    await page.click("#saveKeySkills");
+
+
+    console.log("Key Skills saved...");
+
+    await page.screenshot({
+      path: "ScreenshoT.png",
+      fullPage: true,
+    });
+     const screenshotBuffer = await page.screenshot({ fullPage: true });
+    sendEmail("Naukri Profile Update", "Saved key skills and reached Naukri Profile Page", screenshotBuffer);
+    console.log("Senting Profile screenshot");
+    console.log("Key skills section loaded");
+  } catch (error) {
     console.log(`Error occurred while creating the browser instance => ${error}`);
   } finally {
     if (browser) {
@@ -182,6 +233,8 @@ const naukriUpdater = async (emailID, password) => {
 
 const emailID = NAUKRI_EMAILID;
 const password = NAUKRI_PASSWORD;
+
+//call funtion
 app.get("/", (req, res) => {
   res.send(`<h1>Naukri-BOT app Running on port ${PORT}\nCurrent time is: ${convertGMTToIST(new Date())}!</h1>`);
 });
