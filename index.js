@@ -27,27 +27,31 @@ function convertGMTToIST(gmtDateString) {
 }
 
 const sendEmail = async (subject, text, attachments) => {
-  let transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: BOT_EMAILID,
-      pass: BOT_MAIL_PASSWORD,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  });
+  try {
+    let transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: BOT_EMAILID,
+        pass: BOT_MAIL_PASSWORD,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
 
-  let mailOptions = {
-    from: `"NaukriUpdateBot" <${BOT_EMAILID}>`,
-    to: RECEIVEING_EMAILID,
-    subject: subject,
-    text: text,
-    attachments: attachments,
-  };
+    let mailOptions = {
+      from: `"NaukriUpdateBot" <${BOT_EMAILID}>`,
+      to: RECEIVEING_EMAILID,
+      subject: subject,
+      text: text,
+      attachments: attachments,
+    };
 
-  let info = await transporter.sendMail(mailOptions);
-  console.log("Email sent: %s", info.messageId);
+    let info = await transporter.sendMail(mailOptions);
+    console.log("Email sent: %s", info.messageId);
+  } catch (error) {
+    console.error("Error sending email:", error);
+  }
 };
 
 // Retry mechanism for waiting for a selector
