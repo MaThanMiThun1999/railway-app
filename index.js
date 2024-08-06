@@ -59,7 +59,7 @@ const waitForSelectorWithRetry = async (page, selector, timeout = 30000, retries
     } catch (error) {
       attempt++;
       console.log(`Retry ${attempt}/${retries} for selector: ${selector}`);
-      await delay(5000);
+      await delay(5000); // wait before retrying
     }
   }
   throw new Error(`Failed to find selector: ${selector}`);
@@ -73,7 +73,7 @@ const takeScreenshot = async (page, name) => {
 
 const recordVideo = async (page, videoPath) => {
   const recorder = new PuppeteerScreenRecorder(page, {
-    ffmpegPath: 'ffmpeg',
+    ffmpegPath: 'ffmpeg', // Path to your ffmpeg executable
     videoFrame: {
       width: 1280,
       height: 720
