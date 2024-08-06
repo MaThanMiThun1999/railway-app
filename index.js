@@ -4,11 +4,18 @@ const path = require("path");
 const express = require("express");
 const moment = require("moment-timezone");
 const nodemailer = require("nodemailer");
+const {PuppeteerScreenRecorder} = require('puppeteer-screen-recorder');
 require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const { NAUKRI_EMAILID, NAUKRI_PASSWORD, BOT_EMAILID, BOT_MAIL_PASSWORD, RECEIVEING_EMAILID } = process.env;
+
+// Directories for saving files
+const screenshotsDir = path.join(__dirname, 'screenshots');
+const videosDir = path.join(__dirname, 'videos');
+if (!fs.existsSync(screenshotsDir)) fs.mkdirSync(screenshotsDir);
+if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir);
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const randomDelay = (min, max) => delay(Math.floor(Math.random() * (max - min + 1) + min));
@@ -18,7 +25,7 @@ function convertGMTToIST(gmtDateString) {
   return istDate.format("YYYY-MM-DD hh:mm:ss A");
 }
 
-const sendEmail = async (subject, text, attachment) => {
+const sendEmail = async (subject, text, attachments) => {
   let transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -35,11 +42,8 @@ const sendEmail = async (subject, text, attachment) => {
     to: RECEIVEING_EMAILID,
     subject: subject,
     text: text,
+    attachments: attachments,
   };
-
-  if (attachment) {
-    mailOptions.attachments = [{ filename: "Screenshot.png", content: attachment }];
-  }
 
   let info = await transporter.sendMail(mailOptions);
   console.log("Email sent: %s", info.messageId);
@@ -55,14 +59,35 @@ const waitForSelectorWithRetry = async (page, selector, timeout = 30000, retries
     } catch (error) {
       attempt++;
       console.log(`Retry ${attempt}/${retries} for selector: ${selector}`);
-      await delay(5000); // wait before retrying
+      await delay(5000);
     }
   }
   throw new Error(`Failed to find selector: ${selector}`);
 };
 
+const takeScreenshot = async (page, name) => {
+  const screenshotPath = path.join(screenshotsDir, `${name}.png`);
+  await page.screenshot({ path: screenshotPath, fullPage: true });
+  return fs.readFileSync(screenshotPath);
+};
+
+const recordVideo = async (page, videoPath) => {
+  const recorder = new PuppeteerScreenRecorder(page, {
+    ffmpegPath: 'ffmpeg',
+    videoFrame: {
+      width: 1280,
+      height: 720
+    }
+  });
+
+  await recorder.start(videoPath);
+  await delay(5000); // Record for 5 seconds
+  await recorder.stop();
+};
+
 const naukriUpdater = async (emailID, password) => {
   let browser;
+  const videoPath = path.join(videosDir, 'session.mp4');
   try {
     console.log(`Browser launching...!`);
     const now = new Date();
@@ -113,21 +138,17 @@ const naukriUpdater = async (emailID, password) => {
     await page.goto("https://www.naukri.com/mnjuser/profile?id=&altresid", { waitUntil: "networkidle2" });
     await waitForSelectorWithRetry(page, ".widgetHead>.edit");
 
-    await page.click(".widgetHead> .edit");
+    await page.click(".widgetHead>.edit");
 
     await randomDelay(1000, 2000);
-    // Click on <input> #keySkillSugg
     await page.waitForSelector("#keySkillSugg");
     await page.click("#keySkillSugg");
 
     await randomDelay(1000, 2000);
-    // Fill "Node Fra" on <input> #keySkillSugg
     await page.waitForSelector("#keySkillSugg:not([disabled])");
     await page.type("#keySkillSugg", "Node Fra");
 
-    // Click on <div> "Node Framework"
     await page.waitForSelector(".Sbtn");
-
     await randomDelay(2000, 4000);
     await page.click(".Sbtn");
     await randomDelay(2000, 4000);
@@ -138,10 +159,32 @@ const naukriUpdater = async (emailID, password) => {
 
     await page.click("#saveKeySkills");
 
-    const screenshotBuffer = await page.screenshot({ fullPage: true });
-    await sendEmail("Naukri Profile Update", "Saved key skills and reached Naukri Profile Page", screenshotBuffer);
+    const screenshotBuffer = await takeScreenshot(page, 'final_screenshot');
+    await recordVideo(page, videoPath);
+
+    const attachments = [
+      { filename: 'Screenshot.png', content: screenshotBuffer },
+      { filename: 'session.mp4', path: videoPath }
+    ];
+
+    await sendEmail("Naukri Profile Update", "Saved key skills and reached Naukri Profile Page", attachments);
+
   } catch (error) {
-    console.log(`Error occurred while creating the browser instance => ${error}`);
+    console.log(`Error occurred => ${error}`);
+    // Take a screenshot on error
+    if (browser) {
+      const page = await browser.newPage(); // Create a new page for error screenshot
+      await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2" });
+      const errorScreenshotBuffer = await takeScreenshot(page, 'error_screenshot');
+      await recordVideo(page, path.join(videosDir, 'error_session.mp4'));
+
+      const attachments = [
+        { filename: 'ErrorScreenshot.png', content: errorScreenshotBuffer },
+        { filename: 'error_session.mp4', path: path.join(videosDir, 'error_session.mp4') }
+      ];
+
+      await sendEmail("Naukri Profile Update Error", "Error occurred during the Naukri Profile update", attachments);
+    }
   } finally {
     if (browser) {
       await browser.close();
