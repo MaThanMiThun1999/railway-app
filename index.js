@@ -164,7 +164,8 @@ const naukriUpdater = async (emailID, password) => {
 
     console.log("Waiting for widgetHead Loading...");
     // Click on <span> "editOneTheme"
-    
+
+    await sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", await page.screenshot({ fullPage: true }));
     await page.waitForSelector(".widgetHead > .edit");
     await Promise.all([page.click(".widgetHead > .edit"), page.waitForNavigation()]);
 
@@ -208,15 +209,14 @@ const naukriUpdater = async (emailID, password) => {
     await randomDelay(2000, 4000);
     await page.click("#saveKeySkills");
 
-
     console.log("Key Skills saved...");
 
-    await page.screenshot({
-      path: "ScreenshoT.png",
-      fullPage: true,
-    });
-     const screenshotBuffer = await page.screenshot({ fullPage: true });
-    sendEmail("Naukri Profile Update", "Saved key skills and reached Naukri Profile Page", screenshotBuffer);
+    // await page.screenshot({
+    //   path: "ScreenshoT.png",
+    //   fullPage: true,
+    // });
+    // const screenshotBuffer = await page.screenshot({ fullPage: true });
+    // sendEmail("Naukri Profile Update", "Saved key skills and reached Naukri Profile Page", screenshotBuffer);
     console.log("Senting Profile screenshot");
     console.log("Key skills section loaded");
   } catch (error) {
