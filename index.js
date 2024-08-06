@@ -4,7 +4,7 @@ const path = require("path");
 const express = require("express");
 const moment = require("moment-timezone");
 const nodemailer = require("nodemailer");
-const {PuppeteerScreenRecorder} = require('puppeteer-screen-recorder');
+const { PuppeteerScreenRecorder } = require('puppeteer-screen-recorder');
 require("dotenv").config();
 
 const app = express();
@@ -118,6 +118,22 @@ const naukriUpdater = async (emailID, password) => {
     await page.setViewport({ width: 1280, height: 800 });
 
     await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2" });
+
+    // Handle access denied by setting proper headers or other methods if needed
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      if (request.url().includes('naukri.com')) {
+        request.continue({
+          headers: {
+            ...request.headers(),
+            'Accept-Language': 'en-US,en;q=0.9',
+            'DNT': '1'
+          }
+        });
+      } else {
+        request.continue();
+      }
+    });
 
     const loginCheck = await page.evaluate(() => document.querySelector(".dashboard") !== null);
     if (!loginCheck) {
