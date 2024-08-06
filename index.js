@@ -14,239 +14,189 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const randomDelay = (min, max) => delay(Math.floor(Math.random() * (max - min + 1) + min));
 
 function convertGMTToIST(gmtDateString) {
-  const istDate = moment(gmtDateString).tz("Asia/Kolkata");
-  return istDate.format("YYYY-MM-DD hh:mm:ss A");
+    const istDate = moment(gmtDateString).tz("Asia/Kolkata");
+    return istDate.format("YYYY-MM-DD hh:mm:ss A");
 }
 
 const sendEmail = async (subject, text, attachment) => {
-  let transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: BOT_EMAILID,
-      pass: BOT_MAIL_PASSWORD,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  });
+    let transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+            user: BOT_EMAILID,
+            pass: BOT_MAIL_PASSWORD,
+        },
+        tls: {
+            rejectUnauthorized: false,
+        },
+    });
 
-  let mailOptions = {
-    from: `"Naukri Update Bot" <${BOT_EMAILID}>`,
-    to: RECEIVEING_EMAILID,
-    subject: subject,
-    text: text,
-  };
+    let mailOptions = {
+        from: `"NaukriUpdateBot" <${BOT_EMAILID}>`,
+        to: RECEIVEING_EMAILID,
+        subject: subject,
+        text: text,
+    };
 
-  if (attachment) {
-    mailOptions.attachments = [{ filename: "ScreenshoT.png", content: attachment }];
-  }
+    if (attachment) {
+        mailOptions.attachments = [{ filename: "Screenshot.png", content: attachment }];
+    }
 
-  let info = await transporter.sendMail(mailOptions);
-  console.log("Email sent: %s", info.messageId);
+    let info = await transporter.sendMail(mailOptions);
+    console.log("Email sent: %s", info.messageId);
 };
 
 const naukriUpdater = async (emailID, password) => {
-  let browser;
-  try {
-    console.log(`Browser launching...!`);
-    const now = new Date();
-    console.log(`Launching started at: ${convertGMTToIST(now)}`);
-    browser = await puppeteer.launch({
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
-        "--no-first-run",
-        "--no-zygote",
-        "--single-process",
-        "--disable-gpu",
-        "--disable-software-rasterizer",
-        "--disable-http2", // Disable HTTP/2 support
-      ],
-      headless: true,
-      slowMo: 100,
-    });
-    console.log(`Launching at: Headless: True`);
-    console.log(`Browser launched...!`);
+    let browser;
+    try {
+        console.log("Browser launching...!");
+        const now = new Date();
+        console.log(`Launching started at: ${convertGMTToIST(now)}`);
+        
+        browser = await puppeteer.launch({
+            args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-accelerated-2d-canvas",
+                "--no-first-run",
+                "--no-zygote",
+                "--single-process",
+                "--disable-gpu",
+                "--disable-software-rasterizer",
+                "--disable-http2",
+            ],
+            headless: true,
+            slowMo: 100,
+        });
 
-    const page = await browser.newPage();
+        console.log("Browser launched...!");
+        const page = await browser.newPage();
+        
+        // Set user agent and viewport
+        await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+        await page.setViewport({ width: 1280, height: 800 });
+        
+        // Set WebGL and plugins
+        await page.evaluateOnNewDocument(() => {
+            Object.defineProperty(navigator, "plugins", { get: () => [1, 2, 3, 4, 5] });
+            Object.defineProperty(navigator, "languages", { get: () => ["en-US", "en"] });
+            const originalQuery = window.navigator.permissions.query;
+            window.navigator.permissions.query = (parameters) => (parameters.name === "notifications" ? Promise.resolve({ state: Notification.permission }) : originalQuery(parameters));
+        });
 
-    // Set user agent and viewport
-    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-    await page.setViewport({ width: 1280, height: 800 });
+        // Check if cookies file exists
+        const cookiesPath = path.resolve(__dirname, "cookies.json");
+        console.log(`Cookies path: ${cookiesPath}`);
+        const previousSession = fs.existsSync(cookiesPath);
+        console.log(`Cookies file exists: ${previousSession}`);
+        if (previousSession) {
+            const cookies = JSON.parse(fs.readFileSync(cookiesPath, "utf-8"));
+            console.log("Session cookies are", cookies);
+            if (cookies.length) {
+                await page.setCookie(...cookies);
+                console.log("Session cookies loaded!");
+            }
+        }
 
-    // Set WebGL and plugins
-    await page.evaluateOnNewDocument(() => {
-      Object.defineProperty(navigator, "plugins", {
-        get: () => [1, 2, 3, 4, 5],
-      });
-      Object.defineProperty(navigator, "languages", {
-        get: () => ["en-US", "en"],
-      });
-      const originalQuery = window.navigator.permissions.query;
-      window.navigator.permissions.query = (parameters) => (parameters.name === "notifications" ? Promise.resolve({ state: Notification.permission }) : originalQuery(parameters));
-    });
+        await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2" });
 
-    // Check if cookies file exists
-    const cookiesPath = path.resolve(__dirname, "cookies.json");
-    console.log(`Cookies path: ${cookiesPath}`);
-    const previousSession = fs.existsSync(cookiesPath);
+        // Check if already logged in
+        const loginCheck = await page.evaluate(() => document.querySelector(".dashboard") !== null);
+        if (!loginCheck) {
+            console.log("Navigated to Naukri login page");
 
-    console.log(`Cookies file exists: ${previousSession}`);
-    if (previousSession) {
-      const cookies = JSON.parse(fs.readFileSync(cookiesPath, "utf-8"));
+            // Wait for the username field to be available
+            await page.waitForSelector("#usernameField");
 
-      console.log("Session cookies are" + cookies);
-      if (cookies.length) {
-        await page.setCookie(...cookies);
-        console.log("Session cookies loaded!");
-      }
+            if (!emailID || !password || typeof emailID !== "string" || typeof password !== "string") {
+                throw new Error("Email ID or password is not set or not a string.");
+            }
+
+            console.log("Entering Email ID...!");
+            await page.type("#usernameField", emailID);
+            await randomDelay(1000, 3000);
+            console.log("Entered Email ID");
+
+            console.log("Entering Password...!");
+            await page.type("#passwordField", password);
+            await randomDelay(1000, 2000);
+            console.log("Entered Password");
+
+            console.log("Filled login form");
+            console.log("Clicking on Login button...!");
+            await page.click("button[data-ga-track='spa-event|login|login|Save||||true']");
+            await randomDelay(2000, 4000);
+            console.log("Clicked on Login button");
+
+            // Wait for OTP input field
+            console.log("Waiting for OTP input...");
+            if (await page.evaluate(() => document.querySelector(".otp-input") !== null)) {
+                console.log("OTP input found");
+                // Handle OTP input if necessary
+            } else {
+                console.log("No OTP found");
+            }
+
+            // Save session cookies
+            const cookies = await page.cookies();
+            console.log("Session cookies are", cookies);
+            fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
+            console.log("Session cookies saved!");
+        }
+
+        console.log("Navigating to profile update section...!");
+        await page.goto("https://www.naukri.com/mnjuser/profile?id=&altresid", { waitUntil: "networkidle2" });
+        await randomDelay(2000, 4000);
+        console.log("Navigated to profile update section");
+
+        // Update profile fields (example: updating key skills)
+        console.log("Updating profile fields...");
+        await page.waitForSelector(".widgetHead>.edit");
+        await Promise.all([page.click(".widgetHead>.edit"), page.waitForNavigation()]);
+        console.log("Editing profile section...");
+
+        await page.waitForSelector("#keySkillSugg");
+        await page.click("#keySkillSugg");
+        console.log("Key skills input loaded...");
+
+        await page.waitForSelector("#keySkillSugg:not([disabled])");
+        await page.type("#keySkillSugg", "Node.js");
+        await randomDelay(2000, 4000);
+        console.log("Key skills typed...");
+
+        await page.waitForSelector(".Sbtn");
+        await page.click(".Sbtn");
+        await randomDelay(2000, 4000);
+        console.log("Key skills saved...");
+
+        console.log("Profile fields updated");
+    } catch (error) {
+        console.log(`Error occurred while creating the browser instance => ${error}`);
+        if (browser) {
+            let currentPage = await browser.newPage();
+            await sendEmail("Naukri Profile Update", `Error occurred: ${error}`, await currentPage.screenshot({ fullPage: true }));
+        }
+    } finally {
+        if (browser) {
+            await browser.close();
+            console.log("Browser closed");
+            const now = new Date();
+            console.log(`Closing started at: ${convertGMTToIST(now)}`);
+        }
     }
-
-    await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2" });
-
-    // Check if already logged in
-    const loginCheck = await page.evaluate(() => {
-      return document.querySelector(".dashboard") !== null;
-    });
-
-    if (!loginCheck) {
-      console.log("Navigated to Naukri login page");
-      // Wait for the username field to be available
-      await page.waitForSelector("#usernameField");
-
-      if (!emailID || !password || typeof emailID !== "string" || typeof password !== "string") {
-        throw new Error("Email ID or password is not set or not a string.");
-      }
-      console.log("Entering Email ID...!");
-      await page.type("#usernameField", emailID);
-      await randomDelay(1000, 3000);
-      console.log("Entered Email ID");
-      console.log("Entering Password...!");
-      await page.type("#passwordField", password);
-      await randomDelay(1000, 2000);
-      console.log("Entered Password");
-      console.log("Filled login form");
-      console.log("Clicking on Login button...!");
-      await page.click("button[data-ga-track='spa-event|login|login|Save||||true']");
-      await randomDelay(2000, 4000);
-      console.log("Clicked on Login button");
-
-      // Wait for OTP input field
-      console.log("Waiting for OTP input...");
-      if (
-        await page.evaluate(() => {
-          return document.querySelector(".otp-input") !== null;
-        })
-      ) {
-        console.log("OTP input found");
-        // const OTPscreenshotBuffer = await page.screenshot({ fullPage: true });
-        // sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", OTPscreenshotBuffer.toString());
-        console.log("Sent OTP screenshot");
-      } else {
-        console.log("No OTP found");
-      }
-
-      // Save session cookies
-      const cookies = await page.cookies();
-      console.log("Session cookies are" + cookies);
-      fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
-      console.log("Session cookies saved!");
-    }
-
-    console.log("Navigating to profile update section...!");
-    await page.goto("https://www.naukri.com/mnjuser/profile?id=&altresid", { waitUntil: "networkidle2" });
-    await randomDelay(2000, 4000);
-    console.log("Navigated to profile update section");
-
-    console.log("Navigated to profile update section");
-    console.log("Browser Closing");
-
-    console.log("Waiting for widgetHead Loading...");
-    // Click on <span> "editOneTheme"
-
-    await sendEmail("Naukri Profile Update", "Reached Naukri Profile Page", await page.screenshot({ fullPage: true }));
-    await page.waitForSelector(".widgetHead > .edit");
-    await Promise.all([page.click(".widgetHead > .edit"), page.waitForNavigation()]);
-
-    console.log("WidgetHead loaded...");
-    console.log("Loading Key Skills...");
-    // Click on <input> #keySkillSugg
-    await randomDelay(2000, 4000);
-    await page.waitForSelector("#keySkillSugg");
-    await page.click("#keySkillSugg");
-    console.log("Key Skills loaded...");
-
-    console.log("Loading Key Skills...");
-    console.log("Typing Node js...");
-    // Fill "Node js" on <input> #keySkillSugg
-    await page.waitForSelector("#keySkillSugg:not([disabled])");
-    await page.type("#keySkillSugg", "Node js");
-    await randomDelay(2000, 4000);
-    console.log("Key Skills typed...");
-
-    console.log("Clicking on Node Js Framework...");
-    // Click on <div> "Node Js Framework"
-    await page.waitForSelector(".Sbtn");
-
-    await page.click(".Sbtn");
-    await randomDelay(2000, 4000);
-
-    console.log("Node Js Framework clicked...");
-
-    // Scroll wheel by X:0, Y:131
-    await page.evaluate(() => window.scrollBy(0, 131));
-
-    // Scroll wheel by X:0, Y:-44
-    await page.evaluate(() => window.scrollBy(0, -44));
-
-    // Scroll wheel by X:0, Y:253
-    await page.evaluate(() => window.scrollBy(0, 253));
-
-    console.log("Saving Key Skills...");
-    // Click on <button> "Save"
-    await page.waitForSelector("#saveKeySkills");
-    await randomDelay(2000, 4000);
-    await page.click("#saveKeySkills");
-
-    console.log("Key Skills saved...");
-
-    // await page.screenshot({
-    //   path: "ScreenshoT.png",
-    //   fullPage: true,
-    // });
-    // const screenshotBuffer = await page.screenshot({ fullPage: true });
-    // sendEmail("Naukri Profile Update", "Saved key skills and reached Naukri Profile Page", screenshotBuffer);
-    console.log("Senting Profile screenshot");
-    console.log("Key skills section loaded");
-  } catch (error) {
-    console.log(`Error occurred while creating the browser instance => ${error}`);
-    if(browser) {
-      let currentPage = await browser.newPage();
-      await sendEmail("Naukri Profile Update", `Error occurred: ${error}`, await currentPage.screenshot({ fullPage: true }));
-    }
-  } finally {
-    if (browser) {
-      await browser.close();
-      console.log("Browser Closed");
-      const now = new Date();
-      console.log(`Closing started at: ${convertGMTToIST(now)}`);
-    }
-  }
 };
 
 const emailID = NAUKRI_EMAILID;
 const password = NAUKRI_PASSWORD;
 
-//call funtion
+// Call function
 app.get("/", (req, res) => {
-  res.send(`<h1>Naukri-BOT app Running on port ${PORT}\nCurrent time is: ${convertGMTToIST(new Date())}!</h1>`);
+    res.send(`<h1>Naukri-BOT app Running on port ${PORT}\nCurrent time is: ${convertGMTToIST(new Date())}!</h1>`);
 });
 
 app.get("/send", async (req, res) => {
-  await naukriUpdater(emailID, password);
-  res.send(`<h1>Successfully Email Sent</h1>`);
+    await naukriUpdater(emailID, password);
+    res.send(`<h1>Successfully Email Sent</h1>`);
 });
 
 app.listen(PORT, () => console.log(`Naukri-BOT app listening on port ${PORT}!`));
