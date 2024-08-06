@@ -98,6 +98,7 @@ const setupBrowser = async () => {
       "--disable-gpu",
       "--disable-software-rasterizer",
       "--disable-http2",
+      "--disable-web-security" // Disable web security
     ],
     headless: true,
     slowMo: 100,
@@ -118,19 +119,8 @@ const naukriUpdater = async (emailID, password) => {
     const page = await browser.newPage();
 
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-    await page.setViewport({ width: 1280, height: 800 });
 
-    // Proxy setup (optional, configure if needed)
-    // await page.authenticate({ username: emailID, password: password });
-
-    // // Use cookies and session data if available
-    // const cookies = await page.cookies();
-    // await page.setCookie(...cookies);
-    // console.log(await page.setCookie(...cookies));
-
-    await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2" });
-
-    // Set request headers
+    // Set additional headers
     await page.setRequestInterception(true);
     page.on('request', (request) => {
       if (request.url().includes('naukri.com')) {
@@ -138,15 +128,29 @@ const naukriUpdater = async (emailID, password) => {
           headers: {
             ...request.headers(),
             'Accept-Language': 'en-US,en;q=0.9',
-            'DNT': '1',
-            'Connection': 'keep-alive',
             'Referer': 'https://www.naukri.com/',
+            'DNT': '1',
+            'Connection': 'keep-alive'
           }
         });
       } else {
         request.continue();
       }
     });
+
+    // Use a proxy (optional)
+    // await page.authenticate({ username: 'your-username', password: 'your-password' });
+
+    // Disable cache
+    await page.setCacheEnabled(false);
+
+    await page.setViewport({ width: 1280, height: 800 });
+
+    // Open the page and handle potential CAPTCHA
+    await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2" });
+
+    // Add random delays between actions
+    await randomDelay(2000, 5000);
 
     const loginCheck = await page.evaluate(() => document.querySelector(".dashboard") !== null);
     if (!loginCheck) {
@@ -157,10 +161,11 @@ const naukriUpdater = async (emailID, password) => {
       await page.click("button[data-ga-track='spa-event|login|login|Save||||true']");
       await randomDelay(2000, 4000);
 
-      if (await page.evaluate(() => document.querySelector(".otp-input") !== null)) {
-        console.log("OTP input found");
-      } else {
-        console.log("No OTP found");
+      // Handle CAPTCHA if present
+      if (await page.evaluate(() => document.querySelector(".captcha") !== null)) {
+        console.log("CAPTCHA detected. Please solve it manually.");
+        // Manual intervention required
+        return;
       }
     }
 
