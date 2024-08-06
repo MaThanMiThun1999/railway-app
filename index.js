@@ -62,7 +62,7 @@ const naukriUpdater = async (emailID, password) => {
         "--single-process",
         "--disable-gpu",
         "--disable-software-rasterizer",
-        "--disable-http2" // Disable HTTP/2 support
+        "--disable-http2", // Disable HTTP/2 support
       ],
       headless: true,
       slowMo: 100,
@@ -222,6 +222,10 @@ const naukriUpdater = async (emailID, password) => {
     console.log("Key skills section loaded");
   } catch (error) {
     console.log(`Error occurred while creating the browser instance => ${error}`);
+    if(browser) {
+      let currentPage = await browser.newPage();
+      await sendEmail("Naukri Profile Update", `Error occurred: ${error}`, await currentPage.screenshot({ fullPage: true }));
+    }
   } finally {
     if (browser) {
       await browser.close();
