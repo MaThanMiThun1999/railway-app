@@ -1,0 +1,40 @@
+name: Run Puppeteer Script
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '30 16 * * *' # This will run the action daily at 4:30 PM UTC (10:00 PM IST)
+  workflow_dispatch: # This allows for manual runs
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Puppeteer Script
+        run: node index.js
+        env:
+          NAUKRI_EMAILID: ${{ secrets.NAUKRI_EMAILID }}
+          NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
+          BOT_EMAILID: ${{ secrets.BOT_EMAILID }}
+          BOT_MAIL_PASSWORD: ${{ secrets.BOT_MAIL_PASSWORD }}
+          RECEIVEING_EMAILID: ${{ secrets.RECEIVEING_EMAILID }}
+
+      - name: Upload screenshots and videos
+        uses: actions/upload-artifact@v3
+        with:
+          name: screenshots-and-videos
+          path: /tmp/screenshots, /tmp/videos

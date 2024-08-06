@@ -4,7 +4,7 @@ const path = require("path");
 const express = require("express");
 const moment = require("moment-timezone");
 const nodemailer = require("nodemailer");
-const { PuppeteerScreenRecorder } = require('puppeteer-screen-recorder');
+const { PuppeteerScreenRecorder } = require("puppeteer-screen-recorder");
 require("dotenv").config();
 
 const app = express();
@@ -12,8 +12,9 @@ const PORT = process.env.PORT || 5000;
 const { NAUKRI_EMAILID, NAUKRI_PASSWORD, BOT_EMAILID, BOT_MAIL_PASSWORD, RECEIVEING_EMAILID } = process.env;
 
 // Directories for saving files
-const screenshotsDir = path.join(__dirname, 'screenshots');
-const videosDir = path.join(__dirname, 'videos');
+const tempDir = '/tmp'; // Use /tmp directory
+const screenshotsDir = path.join(tempDir, 'screenshots');
+const videosDir = path.join(tempDir, 'videos');
 if (!fs.existsSync(screenshotsDir)) fs.mkdirSync(screenshotsDir);
 if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir);
 
@@ -85,27 +86,6 @@ const recordVideo = async (page, videoPath) => {
   await recorder.stop();
 };
 
-const setupBrowser = async () => {
-  return puppeteer.launch({
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-accelerated-2d-canvas",
-      "--no-first-run",
-      "--no-zygote",
-      "--single-process",
-      "--disable-gpu",
-      "--disable-software-rasterizer",
-      "--disable-http2",
-      "--disable-web-security"
-    ],
-    headless: true,
-    slowMo: 100,
-    protocolTimeout: 60000, // Increase timeout to 60 seconds
-  });
-};
-
 const naukriUpdater = async (emailID, password) => {
   let browser;
   const videoPath = path.join(videosDir, 'session.mp4');
@@ -114,43 +94,31 @@ const naukriUpdater = async (emailID, password) => {
     const now = new Date();
     console.log(`Launching started at: ${convertGMTToIST(now)}`);
 
-    browser = await setupBrowser();
+    browser = await puppeteer.launch({
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-gpu",
+        "--disable-software-rasterizer",
+        "--disable-http2",
+      ],
+      headless: true,
+      slowMo: 100,
+      protocolTimeout: 120000,
+    });
+
     console.log(`Browser launched...!`);
     const page = await browser.newPage();
 
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-
-    // Set additional headers
-    await page.setRequestInterception(true);
-    page.on('request', (request) => {
-      if (request.url().includes('naukri.com')) {
-        request.continue({
-          headers: {
-            ...request.headers(),
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': 'https://www.naukri.com/',
-            'DNT': '1',
-            'Connection': 'keep-alive'
-          }
-        });
-      } else {
-        request.continue();
-      }
-    });
-
-    // Use a proxy (optional)
-    // await page.authenticate({ username: 'your-username', password: 'your-password' });
-
-    // Disable cache
-    await page.setCacheEnabled(false);
-
     await page.setViewport({ width: 1280, height: 800 });
 
-    // Open the page and handle potential CAPTCHA
-    await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2", timeout: 60000 });
-
-    // Add random delays between actions
-    await randomDelay(2000, 5000);
+    await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2" });
 
     const loginCheck = await page.evaluate(() => document.querySelector(".dashboard") !== null);
     if (!loginCheck) {
@@ -161,15 +129,14 @@ const naukriUpdater = async (emailID, password) => {
       await page.click("button[data-ga-track='spa-event|login|login|Save||||true']");
       await randomDelay(2000, 4000);
 
-      // Handle CAPTCHA if present
-      if (await page.evaluate(() => document.querySelector(".captcha") !== null)) {
-        console.log("CAPTCHA detected. Please solve it manually.");
-        // Manual intervention required
-        return;
+      if (await page.evaluate(() => document.querySelector(".otp-input") !== null)) {
+        console.log("OTP input found");
+      } else {
+        console.log("No OTP found");
       }
     }
 
-    await page.goto("https://www.naukri.com/mnjuser/profile?id=&altresid", { waitUntil: "networkidle2", timeout: 60000 });
+    await page.goto("https://www.naukri.com/mnjuser/profile?id=&altresid", { waitUntil: "networkidle2" });
     await waitForSelectorWithRetry(page, ".widgetHead>.edit");
 
     await page.click(".widgetHead>.edit");
@@ -208,7 +175,7 @@ const naukriUpdater = async (emailID, password) => {
     // Take a screenshot on error
     if (browser) {
       const page = await browser.newPage(); // Create a new page for error screenshot
-      await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2", timeout: 60000 });
+      await page.goto("https://www.naukri.com/nlogin/login", { waitUntil: "networkidle2" });
       const errorScreenshotBuffer = await takeScreenshot(page, 'error_screenshot');
       await recordVideo(page, path.join(videosDir, 'error_session.mp4'));
 
